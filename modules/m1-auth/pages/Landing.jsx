@@ -1,8 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
 import { authApi } from '@/lib/api'
+import { setSession } from '@/lib/session'
 import toast from 'react-hot-toast'
 import { FaGavel, FaChartLine, FaFileAlt, FaShieldAlt, FaClock, FaCheckCircle, FaUsers, FaLock, FaEnvelope, FaKey, FaEye, FaEyeSlash } from 'react-icons/fa'
 
@@ -13,7 +12,6 @@ export default function Landing() {
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showRegisterModal, setShowRegisterModal] = useState(false)
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
-  const [showResetSuccessModal, setShowResetSuccessModal] = useState(false)
   const navigate = useNavigate()
 
   // Login state
@@ -35,8 +33,6 @@ export default function Landing() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false)
 
-  // Reset password state
-  const [resetEmail, setResetEmail] = useState('')
 
   // Load saved credentials on component mount
   useEffect(() => {
@@ -53,19 +49,10 @@ export default function Landing() {
     setLoginError('')
 
     try {
-      await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
+      // The Auth service checks the password and rejects archived accounts
+      const { token, user } = await authApi.login(loginData.email, loginData.password)
+      setSession({ token, user })
 
-      // The Auth service rejects archived accounts and accounts without a profile
-      try {
-        await authApi.me()
-      } catch (profileError) {
-        await signOut(auth)
-        setLoginError(profileError.message)
-        toast.error(profileError.message)
-        setLoginLoading(false)
-        return
-      }
-      
       // Save or remove email based on remember me checkbox
       if (rememberMe) {
         localStorage.setItem('minsu_remember_email', loginData.email)
@@ -78,20 +65,7 @@ export default function Landing() {
       navigate('/app/dashboard')
     } catch (error) {
       console.error('Login error:', error)
-      let message = 'Login failed. Please check your credentials.'
-      if (error.code === 'auth/user-not-found') {
-        message = 'No account found with this email address.'
-      } else if (error.code === 'auth/wrong-password') {
-        message = 'Incorrect password. Please try again.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address format.'
-      } else if (error.code === 'auth/invalid-credential') {
-        message = 'Invalid email or password. Please check your credentials.'
-      } else if (error.code === 'auth/too-many-requests') {
-        message = 'Too many failed login attempts. Please try again later.'
-      } else {
-        message = `Login error: ${error.message}`
-      }
+      const message = error.message || 'Login failed. Please check your credentials.'
       setLoginError(message)
       toast.error(message)
     }
@@ -110,21 +84,22 @@ export default function Landing() {
       return
     }
 
-    if (registerData.password.length < 6) {
-      setRegisterError('Password must be at least 6 characters long!')
-      toast.error('Password must be at least 6 characters long!')
+    if (registerData.password.length < 8) {
+      setRegisterError('Password must be at least 8 characters long!')
+      toast.error('Password must be at least 8 characters long!')
       setRegisterLoading(false)
       return
     }
 
     try {
-      // The Auth service creates the account and its officer profile, then we sign in
+      // The Auth service creates the officer account, then we log in with it
       await authApi.register({
         fullName: registerData.fullName,
         email: registerData.email,
         password: registerData.password
       })
-      await signInWithEmailAndPassword(auth, registerData.email, registerData.password)
+      const { token, user } = await authApi.login(registerData.email, registerData.password)
+      setSession({ token, user })
 
       toast.success('Account created successfully! Welcome to MinSU.')
       setShowRegisterModal(false)
@@ -137,22 +112,6 @@ export default function Landing() {
     setRegisterLoading(false)
   }
 
-  const handleForgotPassword = async () => {
-    if (!resetEmail) {
-      toast.error('Please enter your email address')
-      return
-    }
-
-    try {
-      await sendPasswordResetEmail(auth, resetEmail)
-      toast.success('Password reset email sent! Check your inbox.')
-      setShowForgotPasswordModal(false)
-      setShowResetSuccessModal(true)
-      setResetEmail('')
-    } catch (error) {
-      toast.error('Failed to send reset email. Please check the email address.')
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-green-50">
@@ -724,7 +683,7 @@ export default function Landing() {
                       {showRegisterPassword ? <FaEyeSlash /> : <FaEye />}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                  <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
                 </div>
 
                 <div>
@@ -795,54 +754,21 @@ export default function Landing() {
                   X
                 </button>
               </div>
-              <div className="text-center mb-6">
-                <p className="text-gray-600">
-                  Enter your email address and we'll send you a link to reset your password.
-                </p>
-              </div>
-              <input
-                type="email"
-                value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-emerald-50 border-0 rounded-xl mb-4"
-                placeholder="your.email@minsu.edu.ph"
-              />
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowForgotPasswordModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleForgotPassword}
-                  className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold"
-                >
-                  Send Link
-                </button>
-              </div>
+              <p className="text-gray-600 mb-6">
+                Ask a system administrator to set a new password for you. They can do it from
+                User Management by editing your account.
+              </p>
+              <button
+                onClick={() => setShowForgotPasswordModal(false)}
+                className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold"
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Reset Success Modal */}
-      {showResetSuccessModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Email Sent!</h3>
-            <p className="text-gray-600 mb-6">
-              Check your inbox for the password reset link.
-            </p>
-            <button
-              onClick={() => setShowResetSuccessModal(false)}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

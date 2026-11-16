@@ -60,14 +60,17 @@ export default function UserManagement() {
 
     try {
       await userApi.updateRole(selectedUser.id, selectedUser.role)
+      if (selectedUser.newPassword) {
+        await userApi.resetPassword(selectedUser.id, selectedUser.newPassword)
+      }
 
-      toast.success('User role updated successfully!')
+      toast.success(selectedUser.newPassword ? 'Role and password updated!' : 'User role updated successfully!')
       setShowEditModal(false)
       setSelectedUser(null)
       fetchUsers()
     } catch (error) {
       console.error('Error updating user:', error)
-      toast.error('Failed to update user role')
+      toast.error(error.message || 'Failed to update user')
     }
   }
 
@@ -345,9 +348,9 @@ export default function UserManagement() {
               value={newUserData.password}
               onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="Minimum 6 characters"
+              placeholder="Minimum 8 characters"
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
 
@@ -394,7 +397,7 @@ export default function UserManagement() {
           setShowEditModal(false)
           setSelectedUser(null)
         }}
-        title="Edit User Role"
+        title="Edit User"
         size="sm"
       >
         {selectedUser && (
@@ -420,6 +423,22 @@ export default function UserManagement() {
               </select>
             </div>
 
+            <div>
+              <label htmlFor="edit-user-password" className="block text-sm font-semibold text-gray-700 mb-2">
+                New Password <span className="font-normal text-gray-500">(optional)</span>
+              </label>
+              <input
+                id="edit-user-password"
+                type="password"
+                minLength={8}
+                autoComplete="new-password"
+                value={selectedUser.newPassword || ''}
+                onChange={(e) => setSelectedUser({ ...selectedUser, newPassword: e.target.value })}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
+                placeholder="Leave blank to keep the current password"
+              />
+            </div>
+
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
               <button
                 onClick={() => {
@@ -434,7 +453,7 @@ export default function UserManagement() {
                 onClick={handleUpdateRole}
                 className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base"
               >
-                Update Role
+                Save Changes
               </button>
             </div>
           </div>

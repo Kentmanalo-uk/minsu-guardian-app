@@ -16,7 +16,7 @@ Modules 2, 4 and 5 depend on this service: incident-service records offenses thr
 
 ```bash
 cd services/case-service
-cp .env.example .env      # fill in the Firebase service-account values
+cp .env.example .env      # MySQL settings; Laragon defaults work as-is
 npm install
 npm run dev               # http://localhost:4004/health
 ```

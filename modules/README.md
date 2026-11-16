@@ -10,13 +10,13 @@ The app is split into five modules, one per team member. Each folder here is als
 | `m4-dashboard` | 4. Dashboard and Analytics | Kyle Emanuel Q. Magsino ([repo](https://github.com/Kyle1215-Magsino/MinSU-Guardian)) | analytics-service (4006) | Dashboard |
 | `m5-reports` | 5. Reports and Records | John Paul Rodriguez Quisto ([repo](https://github.com/johnpaulquisto10/MinSU-Guardian-Report)) | report-service (4005) | Reports |
 
-The **leader** owns everything outside `modules/`: `src/App.jsx` (routes), `src/components/Layout.jsx` (menu), `src/lib/api.js`, `src/lib/firebase.js`, the root `package.json` and deployment.
+The **leader** owns everything outside `modules/`: `src/App.jsx` (routes), `src/components/Layout.jsx` (menu), `src/lib/api.js`, `src/lib/session.js`, the database schema (`database/schema.sql`), the root `package.json` and deployment.
 
 ## How the modules talk
 
 Modules never import each other's code. They only call each other's APIs over HTTP:
 
-- The browser signs in with Firebase and sends the ID token as `Authorization: Bearer <token>` on every call.
+- The browser logs in through auth-service (`POST /auth/login`), gets a JWT and sends it as `Authorization: Bearer <token>` on every call.
 - Every service checks that token with `GET /auth/verify` on auth-service.
 - incident-service → student-service (does the student exist?) → case-service (`POST /cases/offenses`).
 - case-service → student-service (Good Moral details).
@@ -26,12 +26,15 @@ Service addresses come from env variables (`AUTH_SERVICE_URL`, `STUDENT_SERVICE_
 
 ## Run the whole app (leader repo)
 
+Needs MySQL 8 running (Laragon's is fine).
+
 ```bash
 npm install          # installs the frontend and all six services (npm workspaces)
+npm run db:setup     # creates the minsu_disciplinary database, tables and the first admin (from .env)
 npm run dev:all      # web on :5173 + all services
 ```
 
-Each service needs its own `.env` (copy its `.env.example`).
+Each service needs its own `.env` (copy its `.env.example`). auth-service also needs a long random `JWT_SECRET`.
 
 ## Git workflow
 

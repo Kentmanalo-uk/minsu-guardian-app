@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from './firebase'
+import { onSessionChange } from './session'
 import { authApi } from './api'
 
 export function useAuth() {
@@ -9,17 +8,17 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user)
+    return onSessionChange(async (session) => {
+      setCurrentUser(session?.user ?? null)
 
-      if (user) {
-        // Fetch user role from the Auth service
+      if (session) {
+        // Ask the Auth service for the current role (it may have changed since login)
         try {
           const profile = await authApi.me()
           setUserRole(profile.role)
         } catch (error) {
           console.error('Error fetching user role:', error)
-          setUserRole('officer')
+          setUserRole(session.user?.role ?? 'officer')
         }
       } else {
         setUserRole(null)
@@ -27,8 +26,6 @@ export function useAuth() {
 
       setLoading(false)
     })
-
-    return unsubscribe
   }, [])
 
   return { currentUser, userRole, loading }

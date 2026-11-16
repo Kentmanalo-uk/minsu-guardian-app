@@ -1,8 +1,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from './lib/firebase'
+import { onSessionChange } from './lib/session'
 import { Toaster } from 'react-hot-toast'
 
 import Landing from '@modules/m1-auth/pages/Landing'
@@ -11,7 +10,6 @@ import CaseManagement from '@modules/m3-cases/pages/CaseManagement'
 import Reports from '@modules/m5-reports/pages/Reports'
 import UserManagement from '@modules/m1-auth/pages/UserManagement'
 import StudentManagement from '@modules/m2-incidents/pages/StudentManagement'
-import SeedData from './pages/SeedData'
 import Layout from './components/Layout'
 
 function App() {
@@ -19,12 +17,10 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser)
+    return onSessionChange((session) => {
+      setUser(session?.user ?? null)
       setLoading(false)
     })
-
-    return () => unsubscribe()
   }, [])
 
   if (loading) {
@@ -111,11 +107,6 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Landing />} />
-
-        <Route
-          path="/seed"
-          element={user ? <SeedData /> : <Navigate to="/" replace />}
-        />
 
         <Route
           path="/app"

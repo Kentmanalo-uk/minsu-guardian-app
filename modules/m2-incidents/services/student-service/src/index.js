@@ -1,15 +1,20 @@
-// Module 2 — Student Records. Owns the `students` collection (doc id = student_id).
+// Module 2 — Student Records. Owns the `students` table (primary key = student_id).
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import { FieldValue } from 'firebase-admin/firestore'
-import { db, fromDoc } from './lib/firebase.js'
+import { db } from './lib/db.js'
 import { requireAuth } from './lib/auth.js'
 import { HttpError, requireFields, errorHandler } from './lib/http.js'
 
-const students = db.collection('students')
 const EDITABLE = ['student_name', 'email', 'phone', 'course', 'year_level']
 const pick = (body) => Object.fromEntries(EDITABLE.filter(k => body[k] !== undefined).map(k => [k, body[k]]))
+// `id` mirrors student_id so the pages can keep using row.id
+const toStudent = (row) => ({ id: row.student_id, ...row })
+
+async function findStudent(id) {
+  const [rows] = await db.query('SELECT * FROM students WHERE student_id = ?', [id])
+  return rows[0]
+}
 
 const app = express()
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*' }))
@@ -20,44 +25,45 @@ app.get('/health', (req, res) => res.json({ service: 'student-service', status: 
 app.use('/students', requireAuth)
 
 app.get('/students', async (req, res) => {
-  const snapshot = await students.get()
-  res.json(snapshot.docs.map(fromDoc))
+  const [rows] = await db.query('SELECT * FROM students ORDER BY student_name')
+  res.json(rows.map(toStudent))
 })
 
 app.get('/students/:id', async (req, res) => {
-  const snap = await students.doc(req.params.id).get()
-  if (!snap.exists) throw new HttpError(404, 'Student not found')
-  res.json(fromDoc(snap))
+  const row = await findStudent(req.params.id)
+  if (!row) throw new HttpError(404, 'Student not found')
+  res.json(toStudent(row))
 })
 
 app.post('/students', async (req, res) => {
   requireFields(req.body, ['student_id', 'student_name'])
   const studentId = String(req.body.student_id).trim()
-  const ref = students.doc(studentId)
-  if ((await ref.get()).exists) throw new HttpError(409, `Student ${studentId} already exists`)
-
-  await ref.set({
-    student_id: studentId,
-    ...pick(req.body),
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
-  })
-  res.status(201).json(fromDoc(await ref.get()))
+  try {
+    await db.query('INSERT INTO students SET ?', [{ ...pick(req.body), student_id: studentId }])
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') throw new HttpError(409, `Student ${studentId} already exists`)
+    throw err
+  }
+  res.status(201).json(toStudent(await findStudent(studentId)))
 })
 
 app.put('/students/:id', async (req, res) => {
-  const ref = students.doc(req.params.id)
-  if (!(await ref.get()).exists) throw new HttpError(404, 'Student not found')
-
-  await ref.update({ ...pick(req.body), updatedAt: FieldValue.serverTimestamp() })
-  res.json(fromDoc(await ref.get()))
+  const fields = pick(req.body)
+  if (!Object.keys(fields).length) throw new HttpError(400, 'Nothing to update')
+  const [result] = await db.query('UPDATE students SET ? WHERE student_id = ?', [fields, req.params.id])
+  if (!result.affectedRows) throw new HttpError(404, 'Student not found')
+  res.json(toStudent(await findStudent(req.params.id)))
 })
 
 app.delete('/students/:id', async (req, res) => {
-  const ref = students.doc(req.params.id)
-  if (!(await ref.get()).exists) throw new HttpError(404, 'Student not found')
-
-  await ref.delete()
+  try {
+    const [result] = await db.query('DELETE FROM students WHERE student_id = ?', [req.params.id])
+    if (!result.affectedRows) throw new HttpError(404, 'Student not found')
+  } catch (err) {
+    // The foreign key keeps disciplinary records from losing their student
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') throw new HttpError(409, 'This student has a disciplinary case and cannot be deleted')
+    throw err
+  }
   res.status(204).end()
 })
 

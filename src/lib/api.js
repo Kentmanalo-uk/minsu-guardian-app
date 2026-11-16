@@ -1,4 +1,4 @@
-import { auth } from './firebase'
+import { getToken, clearSession } from './session'
 
 // Each module is deployed separately; point these at the deployed URLs in .env
 const SERVICES = {
@@ -11,7 +11,7 @@ const SERVICES = {
 }
 
 async function request(service, path, { method = 'GET', body, raw = false } = {}) {
-  const token = await auth.currentUser?.getIdToken()
+  const token = getToken()
   let res
   try {
     res = await fetch(`${SERVICES[service]}${path}`, {
@@ -28,6 +28,8 @@ async function request(service, path, { method = 'GET', body, raw = false } = {}
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
+    // Expired or revoked login: sign out so the app returns to the login page
+    if (res.status === 401 && token) clearSession()
     throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status })
   }
   if (raw) return res
@@ -38,6 +40,7 @@ const json = (method, body) => ({ method, body })
 
 // Module 1 — Auth & User Management
 export const authApi = {
+  login: (email, password) => request('auth', '/auth/login', json('POST', { email, password })),
   me: () => request('auth', '/auth/me'),
   register: (data) => request('auth', '/auth/register', json('POST', data)),
 }
@@ -47,6 +50,7 @@ export const userApi = {
   create: (data) => request('auth', '/users', json('POST', data)),
   updateRole: (id, role) => request('auth', `/users/${id}/role`, json('PATCH', { role })),
   setArchived: (id, archived) => request('auth', `/users/${id}/archive`, json('PATCH', { archived })),
+  resetPassword: (id, password) => request('auth', `/users/${id}/password`, json('PATCH', { password })),
 }
 
 // Module 2 — Incident Reporting (student records)

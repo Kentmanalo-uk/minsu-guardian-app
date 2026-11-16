@@ -6,7 +6,7 @@
 
 | Service | Port | Provides | Calls |
 |---|---|---|---|
-| `services/auth-service` | 4001 | GET /auth/me · GET /auth/verify · POST /auth/register · GET/POST /users · PATCH /users/:id/role · PATCH /users/:id/archive (admin) | — |
+| `services/auth-service` | 4001 | POST /auth/login · GET /auth/me · GET /auth/verify · POST /auth/register · GET/POST /users · PATCH /users/:id/role · PATCH /users/:id/archive · PATCH /users/:id/password (admin) | — |
 
 **Pages** (in `pages/`): Landing.jsx (login, register, reset password) · UserManagement.jsx · Login.jsx, Register.jsx (not routed yet)
 
@@ -16,7 +16,7 @@ Every other service calls `GET /auth/verify` to check the caller, so keep that r
 
 ```bash
 cd services/auth-service
-cp .env.example .env      # fill in the Firebase service-account values
+cp .env.example .env      # MySQL settings + a long random JWT_SECRET
 npm install
 npm run dev               # http://localhost:4001/health
 ```
