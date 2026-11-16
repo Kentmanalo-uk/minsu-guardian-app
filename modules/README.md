@@ -73,6 +73,8 @@ Open an issue in that member's repo and let them fix it there. If the leader edi
 `modules/m3-cases` has no separate repo: the leader edits it directly here and commits to `main`. To refresh its `member/m3-cases` branch after changes:
 
 ```bash
-git subtree split --prefix=modules/m3-cases -b member/m3-cases
+git branch -f member/m3-cases $(git commit-tree $(git rev-parse HEAD:modules/m3-cases) -p member/m3-cases -m "Update Module 3")
 git push leader member/m3-cases
 ```
+
+(`git subtree split` doesn't work here: the squashed member merges make it stop at the first commit.)
