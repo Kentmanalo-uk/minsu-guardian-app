@@ -1,18 +1,23 @@
-// Module 4 — Case Management & Sanctions. Owns the `disciplinary_cases` collection:
-// one case per student, with every offense kept in `offense_history`.
+// Module 3 — Case Management & Sanctions. Owns the `disciplinary_cases` and `incidents`
+// tables: one case per student, one incidents row per reported offense.
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import { FieldValue } from 'firebase-admin/firestore'
-import { db, fromDoc } from './lib/firebase.js'
+import { db, transaction } from './lib/db.js'
 import { requireAuth } from './lib/auth.js'
 import { HttpError, callService, requireFields, errorHandler } from './lib/http.js'
 
-const cases = db.collection('disciplinary_cases')
 const STATUSES = ['pending', 'active', 'resolved']
 const GOOD_MORAL_MAX_OFFENSES = 2 // Only 1st and 2nd offense are eligible
 
-const ordinal = (n) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'} Offense`
+// A case row with its student's name and the details of its latest incident
+const CASE_SELECT = `
+  SELECT c.id, c.case_number, c.student_id, s.student_name, c.status, c.created_at, c.updated_at,
+         li.offense_level AS violation_type, li.description, li.date_of_incident, li.location, li.reported_by,
+         (SELECT COUNT(*) FROM incidents i WHERE i.case_id = c.id) AS offense_count
+  FROM disciplinary_cases c
+  JOIN students s ON s.student_id = c.student_id
+  LEFT JOIN incidents li ON li.id = (SELECT MAX(id) FROM incidents WHERE case_id = c.id)`
 
 // Offense level and good-moral eligibility, derived from the stored case
 function withOffenseInfo(case_) {
@@ -30,6 +35,25 @@ function withOffenseInfo(case_) {
   }
 }
 
+// Attach offense_history (oldest first) to each case
+async function withHistory(cases) {
+  if (!cases.length) return cases
+  const [rows] = await db.query(
+    `SELECT case_id, offense_level, description, date_of_incident, location, reported_by, created_at AS reported_at
+     FROM incidents WHERE case_id IN (?) ORDER BY id`,
+    [cases.map(c => c.id)],
+  )
+  return cases.map(c => withOffenseInfo({
+    ...c,
+    offense_history: rows.filter(r => r.case_id === c.id).map(({ case_id, ...r }) => r),
+  }))
+}
+
+async function findCase(where, params) {
+  const [rows] = await db.query(`${CASE_SELECT} WHERE ${where}`, params)
+  return rows.length ? (await withHistory(rows))[0] : null
+}
+
 const app = express()
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*' }))
 app.use(express.json())
@@ -40,30 +64,29 @@ app.use('/cases', requireAuth)
 
 // ?status=pending|active|resolved  ?limit=10
 app.get('/cases', async (req, res) => {
-  let q = cases.orderBy('created_at', 'desc')
-  if (req.query.status) q = q.where('status', '==', req.query.status)
-  if (req.query.limit) q = q.limit(Math.min(parseInt(req.query.limit) || 10, 500))
+  const params = []
+  let sql = CASE_SELECT
+  if (req.query.status) { sql += ' WHERE c.status = ?'; params.push(req.query.status) }
+  sql += ' ORDER BY c.created_at DESC, c.id DESC'
+  if (req.query.limit) { sql += ' LIMIT ?'; params.push(Math.min(parseInt(req.query.limit) || 10, 500)) }
 
-  const snapshot = await q.get()
-  res.json(snapshot.docs.map(d => withOffenseInfo(fromDoc(d))))
+  const [rows] = await db.query(sql, params)
+  res.json(await withHistory(rows))
 })
 
 // { [student_id]: number of offenses so far } — used to suggest the next offense level
 app.get('/cases/offense-counts', async (req, res) => {
-  const snapshot = await cases.get()
-  const counts = {}
-  snapshot.docs.forEach(d => {
-    const { student_id, offense_count } = d.data()
-    counts[student_id] = (counts[student_id] || 0) + (offense_count || 1)
-  })
-  res.json(counts)
+  const [rows] = await db.query(
+    `SELECT c.student_id, COUNT(i.id) AS n FROM disciplinary_cases c
+     LEFT JOIN incidents i ON i.case_id = c.id GROUP BY c.student_id`,
+  )
+  res.json(Object.fromEntries(rows.map(r => [r.student_id, Number(r.n)])))
 })
 
 // Good-moral certificate check: combines this module's case data with the Student module's record
 app.get('/cases/good-moral/:studentId', async (req, res) => {
   const { studentId } = req.params
-  const snapshot = await cases.where('student_id', '==', studentId).limit(1).get()
-  const case_ = snapshot.empty ? null : withOffenseInfo(fromDoc(snapshot.docs[0]))
+  const case_ = await findCase('c.student_id = ?', [studentId])
 
   let student = null
   try {
@@ -85,57 +108,45 @@ app.get('/cases/good-moral/:studentId', async (req, res) => {
 })
 
 app.get('/cases/:id', async (req, res) => {
-  const snap = await cases.doc(req.params.id).get()
-  if (!snap.exists) throw new HttpError(404, 'Case not found')
-  res.json(withOffenseInfo(fromDoc(snap)))
+  const case_ = await findCase('c.id = ?', [req.params.id])
+  if (!case_) throw new HttpError(404, 'Case not found')
+  res.json(case_)
 })
 
-// Record an offense: appended to the student's existing case, or opens a new one.
-// Called by the Incident module.
+// Record an offense: added to the student's existing case, or opens a new one.
+// Called by the Incident module. The whole thing is one transaction.
 app.post('/cases/offenses', async (req, res) => {
-  requireFields(req.body, ['student_id', 'student_name', 'violation_type', 'description', 'date_of_incident', 'location', 'reported_by'])
-  const { student_id, student_name, violation_type, description, date_of_incident, location, reported_by } = req.body
-  const offense = { offense_level: violation_type, description, date_of_incident, location, reported_by, reported_at: new Date() }
+  requireFields(req.body, ['student_id', 'violation_type', 'description', 'date_of_incident', 'location', 'reported_by'])
+  const { student_id, violation_type, description, date_of_incident, location, reported_by } = req.body
+  const submittedBy = req.user?.uid ?? null
 
-  const result = await db.runTransaction(async (tx) => {
-    const existing = await tx.get(cases.where('student_id', '==', student_id).limit(1))
+  const result = await transaction(async (conn) => {
+    // FOR UPDATE locks the student's case row, so two simultaneous reports can't both create a case
+    const [existing] = await conn.query('SELECT id, case_number FROM disciplinary_cases WHERE student_id = ? FOR UPDATE', [student_id])
+    let caseId, caseNumber, created = false
 
-    if (!existing.empty) {
-      const doc = existing.docs[0]
-      const data = doc.data()
-      const offenseHistory = [...(data.offense_history || []), offense]
-      tx.update(doc.ref, {
-        violation_type,
-        description,
-        date_of_incident,
-        location,
-        reported_by,
-        offense_history: offenseHistory,
-        offense_count: offenseHistory.length,
-        status: 'pending',
-        updated_at: FieldValue.serverTimestamp(),
-      })
-      return { id: doc.id, case_number: data.case_number, offense_count: offenseHistory.length, created: false }
+    if (existing.length) {
+      caseId = existing[0].id
+      caseNumber = existing[0].case_number
+      await conn.query("UPDATE disciplinary_cases SET status = 'pending' WHERE id = ?", [caseId])
+    } else {
+      const [ins] = await conn.query('INSERT INTO disciplinary_cases (student_id) VALUES (?)', [student_id])
+      caseId = ins.insertId
+      caseNumber = `CASE-${new Date().getFullYear()}-${String(caseId).padStart(5, '0')}`
+      await conn.query('UPDATE disciplinary_cases SET case_number = ? WHERE id = ?', [caseNumber, caseId])
+      created = true
     }
 
-    const ref = cases.doc()
-    const case_number = `CASE-${Date.now()}`
-    tx.set(ref, {
-      case_number,
-      student_name,
-      student_id,
-      violation_type,
-      description,
-      date_of_incident,
-      location,
-      reported_by,
-      offense_history: [offense],
-      offense_count: 1,
-      status: 'pending',
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
-    })
-    return { id: ref.id, case_number, offense_count: 1, created: true }
+    await conn.query(
+      `INSERT INTO incidents (case_id, offense_level, description, date_of_incident, location, reported_by, submitted_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [caseId, violation_type, description, date_of_incident, location, reported_by, submittedBy],
+    )
+    const [[{ n }]] = await conn.query('SELECT COUNT(*) AS n FROM incidents WHERE case_id = ?', [caseId])
+    return { id: caseId, case_number: caseNumber, offense_count: Number(n), created }
+  }).catch(err => {
+    if (err.code === 'ER_NO_REFERENCED_ROW_2') throw new HttpError(404, `Student ${student_id} is not registered`)
+    throw err
   })
 
   res.status(result.created ? 201 : 200).json({ ...result, violation_type })
@@ -144,57 +155,14 @@ app.post('/cases/offenses', async (req, res) => {
 app.patch('/cases/:id/status', async (req, res) => {
   const { status } = req.body
   if (!STATUSES.includes(status)) throw new HttpError(400, `Status must be one of: ${STATUSES.join(', ')}`)
-  const ref = cases.doc(req.params.id)
-  if (!(await ref.get()).exists) throw new HttpError(404, 'Case not found')
-
-  await ref.update({ status, updated_at: FieldValue.serverTimestamp() })
-  res.json(withOffenseInfo(fromDoc(await ref.get())))
+  const [result] = await db.query('UPDATE disciplinary_cases SET status = ? WHERE id = ?', [status, req.params.id])
+  if (!result.affectedRows) throw new HttpError(404, 'Case not found')
+  res.json(await findCase('c.id = ?', [req.params.id]))
 })
 
-// Collapse multiple cases for the same student into their oldest case
-app.post('/cases/merge-duplicates', async (req, res) => {
-  const snapshot = await cases.orderBy('created_at', 'asc').get()
-  const byStudent = {}
-  snapshot.docs.forEach(d => {
-    const data = d.data()
-    ;(byStudent[data.student_id] ||= []).push({ id: d.id, ...data })
-  })
-
-  let mergedCount = 0
-  for (const studentCases of Object.values(byStudent)) {
-    if (studentCases.length < 2) continue
-
-    const [mainCase, ...duplicates] = studentCases
-    const latestCase = studentCases[studentCases.length - 1]
-    const offenseCount = studentCases.length
-    const offenseHistory = studentCases.map((case_, index) => ({
-      offense_level: case_.violation_type || ordinal(index + 1),
-      description: case_.description,
-      date_of_incident: case_.date_of_incident,
-      location: case_.location,
-      reported_by: case_.reported_by,
-      reported_at: case_.created_at?.toDate?.() || new Date(),
-    }))
-
-    const batch = db.batch()
-    batch.update(cases.doc(mainCase.id), {
-      violation_type: latestCase.violation_type || ordinal(offenseCount),
-      description: latestCase.description,
-      date_of_incident: latestCase.date_of_incident,
-      location: latestCase.location,
-      reported_by: latestCase.reported_by,
-      offense_history: offenseHistory,
-      offense_count: offenseCount,
-      status: latestCase.status,
-      updated_at: FieldValue.serverTimestamp(),
-    })
-    duplicates.forEach(dup => batch.delete(cases.doc(dup.id)))
-    await batch.commit()
-    mergedCount++
-  }
-
-  res.json({ mergedCount })
-})
+// Kept for the "Merge duplicates" button. The UNIQUE key on student_id means
+// MySQL never stores two cases for one student, so there is nothing to merge.
+app.post('/cases/merge-duplicates', (req, res) => res.json({ mergedCount: 0 }))
 
 app.use(errorHandler)
 
