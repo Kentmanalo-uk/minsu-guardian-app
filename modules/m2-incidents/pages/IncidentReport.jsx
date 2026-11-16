@@ -130,11 +130,11 @@ export default function IncidentReport() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Report Incident</h2>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-[2.25rem]">Report Incident</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">Submit a new disciplinary case report</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 p-4 sm:p-8 space-y-6 sm:space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-line p-4 sm:p-8 space-y-6 sm:space-y-8">
         {/* Student Information Section */}
         <div>
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
@@ -168,7 +168,7 @@ export default function IncidentReport() {
                 
                 {/* Dropdown */}
                 {showStudentDropdown && filteredStudents.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border-2 border-emerald-500 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-line rounded-lg shadow-[0_12px_32px_-12px_rgba(21,32,27,0.25)] max-h-60 overflow-y-auto">
                     {filteredStudents.map((student, index) => {
                       const nextOffense = student.offenseCount + 1
                       const nextOffenseText = nextOffense === 1 ? '1st Offense' :
@@ -396,7 +396,7 @@ export default function IncidentReport() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 px-6 py-3 sm:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-base sm:text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
+            className="flex-1 px-6 py-3 sm:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-base sm:text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
           >
             {loading ? (
               <span className="flex items-center justify-center space-x-2">
@@ -418,7 +418,7 @@ export default function IncidentReport() {
               location: '',
               reported_by: '',
             })}
-            className="px-6 py-3 sm:py-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold text-base sm:text-lg transition-all transform hover:scale-105"
+            className="px-6 py-3 sm:py-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold text-base sm:text-lg transition-all"
           >
             Clear Form
           </button>
@@ -434,7 +434,7 @@ export default function IncidentReport() {
       >
         <div className="text-center py-6">
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Incident Reported Successfully!</h3>
-          <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-6 mb-6">
+          <div className="bg-pine-50 border border-pine-100 rounded-xl p-6 mb-6">
             <p className="text-sm text-gray-600 mb-2">Your Case Number:</p>
             <p className="text-3xl font-bold text-emerald-600">{generatedCaseNumber}</p>
           </div>
@@ -446,7 +446,7 @@ export default function IncidentReport() {
               setShowSuccessModal(false)
               navigate('/app/cases')
             }}
-            className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all transform hover:scale-105"
+            className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all"
           >
             Go to Case Management
           </button>

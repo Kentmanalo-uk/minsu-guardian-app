@@ -29,10 +29,10 @@ function App() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#F8F8F5] flex items-center justify-center px-6">
+      <main className="min-h-screen bg-paper flex items-center justify-center px-6">
         <div className="w-full max-w-xs">
           <div className="flex items-center gap-3 mb-10">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-800 text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-pine text-white">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -66,7 +66,7 @@ function App() {
           </div>
 
           <div className="h-px w-full overflow-hidden bg-gray-200">
-            <div className="h-full w-1/3 animate-loading-bar bg-emerald-700" />
+            <div className="h-full w-1/3 animate-loading-bar bg-pine-600" />
           </div>
 
           <p className="mt-4 text-sm text-gray-500">
@@ -90,7 +90,7 @@ function App() {
             borderRadius: '12px',
             border: 'none',
             boxShadow: '0 8px 30px rgba(20, 35, 25, 0.08)',
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: '"Hanken Grotesk", sans-serif',
             fontSize: '13px',
             maxWidth: '360px',
           },

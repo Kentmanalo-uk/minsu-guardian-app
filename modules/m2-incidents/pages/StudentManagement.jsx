@@ -143,7 +143,7 @@ export default function StudentManagement() {
               setSelectedStudent(row)
               setShowEditModal(true)
             }}
-            className="flex items-center space-x-1 px-2 sm:px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-xs sm:text-sm"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium transition-colors text-ink hover:bg-paper"
             title="Edit Student"
           >
             <FaEdit />
@@ -154,7 +154,7 @@ export default function StudentManagement() {
               setSelectedStudent(row)
               setShowDeleteModal(true)
             }}
-            className="flex items-center space-x-1 px-2 sm:px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-xs sm:text-sm"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium transition-colors text-red-700 hover:border-red-200 hover:bg-red-50"
             title="Delete Student"
           >
             <FaTrash />
@@ -198,12 +198,12 @@ export default function StudentManagement() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Student Management</h2>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-[2.25rem]">Student Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage student records and information</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg text-sm sm:text-base"
+          className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 bg-pine hover:bg-pine-600 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base"
         >
           <FaUserPlus />
           <span>Add New Student</span>
@@ -211,7 +211,7 @@ export default function StudentManagement() {
       </div>
 
       {/* Students DataTable */}
-      <div className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-line overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>

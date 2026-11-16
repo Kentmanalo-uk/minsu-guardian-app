@@ -565,7 +565,7 @@ export default function CaseManagement() {
       center: true,
       cell: row => (
         <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
+          className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold uppercase ${
             row.status === 'pending'
               ? 'bg-yellow-100 text-yellow-800'
               : row.status === 'active'
@@ -579,12 +579,12 @@ export default function CaseManagement() {
     },
     {
       name: 'Actions',
-      width: '100px',
+      width: '120px',
       center: true,
       cell: row => (
         <button
           onClick={() => openCaseDetails(row)}
-          className="flex items-center justify-center space-x-1 px-2 sm:px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium transition-colors text-ink hover:bg-paper"
           title="View Details"
         >
           <FaEye className="text-sm sm:text-base" />
@@ -631,13 +631,13 @@ export default function CaseManagement() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Case Management</h2>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-[2.25rem]">Case Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Review and manage disciplinary cases</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
             onClick={openReportModal}
-            className="flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all text-sm"
+            className="flex items-center justify-center space-x-2 whitespace-nowrap px-4 py-2 bg-pine hover:bg-pine-600 text-white rounded-lg font-semibold transition-colors text-sm"
             title="Report new incident"
           >
             <FaPlus />
@@ -646,7 +646,7 @@ export default function CaseManagement() {
           <button
             onClick={mergeDuplicateCases}
             disabled={mergingCases}
-            className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="flex items-center justify-center space-x-2 whitespace-nowrap px-4 py-2 border border-line bg-white text-ink hover:bg-paper rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             title="Merge duplicate cases for same students"
           >
             <FaBroom />
@@ -660,8 +660,8 @@ export default function CaseManagement() {
                 onClick={() => setFilter(status)}
                 className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                   filter === status
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-ink text-white'
+                    : 'bg-white text-muted border border-line hover:text-ink'
                 }`}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -672,7 +672,7 @@ export default function CaseManagement() {
       </div>
 
       {/* DataTable */}
-      <div className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-line overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
@@ -784,7 +784,7 @@ export default function CaseManagement() {
                   </div>
                   <button
                     onClick={() => printGoodMoralCertificate(selectedCase)}
-                    className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg w-full sm:w-auto flex-shrink-0"
+                    className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all shadow-lg w-full sm:w-auto flex-shrink-0"
                   >
                     <FaPrint className="text-lg" />
                     <span className="whitespace-nowrap">Print Certificate</span>
@@ -946,7 +946,7 @@ export default function CaseManagement() {
                     autoComplete="off"
                   />
                   {showStudentDropdown && filteredStudents.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-emerald-500 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-line rounded-lg shadow-[0_12px_32px_-12px_rgba(21,32,27,0.25)] max-h-48 overflow-y-auto">
                       {filteredStudents.map((student, index) => {
                         const nextOffense = student.offenseCount + 1
                         const nextOffenseText = nextOffense === 1 ? '1st Offense' :
