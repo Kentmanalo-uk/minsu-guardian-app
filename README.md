@@ -9,7 +9,7 @@ A web-based disciplinary case management system for Mindoro State University –
 - **Database:** MySQL 8 (`minsu_disciplinary`, schema in [database/schema.sql](database/schema.sql))
 - **Login:** passwords hashed with bcrypt; sessions are JWTs issued by auth-service
 
-## Getting started
+## Run locally (Laragon, no Docker)
 
 Requires Node.js 18+ and MySQL 8 (Laragon includes both).
 
@@ -27,6 +27,26 @@ Requires Node.js 18+ and MySQL 8 (Laragon includes both).
    npm run dev:all
    ```
 5. Open http://localhost:5173 and log in with the admin account.
+
+## Run with Docker
+
+Runs MySQL, all six services and the website in containers. Needs only Docker Desktop.
+
+1. Copy `.env.example` to `.env` and set long random values for `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD` and `JWT_SECRET`, plus `ADMIN_EMAIL` and `ADMIN_PASSWORD` for the first admin. Set `SEED_SAMPLE_DATA=true` to start with fictional sample students and cases.
+2. Start everything (use PowerShell or the VS Code terminal; Git Bash can trip Docker's file-permission check on Windows):
+   ```bash
+   docker compose up -d --build
+   ```
+3. Open http://localhost:8080 and log in with the admin account.
+
+| Command | What it does |
+|---|---|
+| `docker compose ps` | Show what's running |
+| `docker compose logs -f case` | Follow one service's log (`auth`, `student`, `incident`, `case`, `report`, `analytics`, `web`, `mysql`) |
+| `docker compose down` | Stop everything (data is kept) |
+| `docker compose down -v` | Stop and **delete the database** |
+
+The database lives in the `mysql-data` volume and is reachable from your PC on port **3307** (user `minsu`, password `MYSQL_PASSWORD`), so it doesn't clash with Laragon's MySQL on 3306. The admin account is only created on first start; changing `ADMIN_*` later does nothing.
 
 ## Project structure
 

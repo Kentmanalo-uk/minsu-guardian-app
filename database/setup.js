@@ -32,4 +32,14 @@ if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
   }
 }
 
+if (process.env.SEED_SAMPLE_DATA === 'true') {
+  const [[{ n }]] = await conn.query('SELECT COUNT(*) AS n FROM students')
+  if (n > 0) {
+    console.log('Skipped sample data: the database already has students.')
+  } else {
+    await conn.query(fs.readFileSync(new URL('./sample-data.sql', import.meta.url), 'utf8'))
+    console.log('✓ Sample data added (6 students, 4 cases, 7 incidents)')
+  }
+}
+
 await conn.end()

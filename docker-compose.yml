@@ -1,0 +1,126 @@
+# Runs the whole app: MySQL, the six module services and the website.
+#   docker compose up -d --build      then open http://localhost:8080
+# Settings come from the root .env (see the Docker section of .env.example).
+name: minsu
+
+x-api: &api
+  build:
+    context: .
+    target: api
+  image: minsu-api
+  restart: unless-stopped
+  depends_on:
+    db-setup:
+      condition: service_completed_successfully
+
+x-db: &db
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_USER: minsu
+  DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+  DB_NAME: minsu_disciplinary
+
+services:
+  mysql:
+    image: mysql:${MYSQL_VERSION:-8.4}
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: minsu_disciplinary
+      MYSQL_USER: minsu
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3307:3306" # 3307 on your PC, so it doesn't clash with Laragon's MySQL on 3306
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      retries: 30
+
+  # Creates the tables and the first admin (from ADMIN_* in .env), then exits
+  db-setup:
+    <<: *api
+    restart: "no"
+    command: ["node", "database/setup.js"]
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME:-System Administrator}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SEED_SAMPLE_DATA: ${SEED_SAMPLE_DATA:-false}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  auth:
+    <<: *api
+    command: ["node", "modules/m1-auth/services/auth-service/src/index.js"]
+    environment:
+      <<: *db
+      PORT: "4001"
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRES_IN: 8h
+
+  student:
+    <<: *api
+    command: ["node", "modules/m2-incidents/services/student-service/src/index.js"]
+    environment:
+      <<: *db
+      PORT: "4002"
+      AUTH_SERVICE_URL: http://auth:4001
+
+  incident:
+    <<: *api
+    command: ["node", "modules/m2-incidents/services/incident-service/src/index.js"]
+    environment:
+      <<: *db
+      PORT: "4003"
+      AUTH_SERVICE_URL: http://auth:4001
+      STUDENT_SERVICE_URL: http://student:4002
+      CASE_SERVICE_URL: http://case:4004
+
+  case:
+    <<: *api
+    command: ["node", "modules/m3-cases/services/case-service/src/index.js"]
+    environment:
+      <<: *db
+      PORT: "4004"
+      AUTH_SERVICE_URL: http://auth:4001
+      STUDENT_SERVICE_URL: http://student:4002
+
+  report:
+    <<: *api
+    command: ["node", "modules/m5-reports/services/report-service/src/index.js"]
+    environment:
+      PORT: "4005"
+      AUTH_SERVICE_URL: http://auth:4001
+      CASE_SERVICE_URL: http://case:4004
+
+  analytics:
+    <<: *api
+    command: ["node", "modules/m4-dashboard/services/analytics-service/src/index.js"]
+    environment:
+      PORT: "4006"
+      AUTH_SERVICE_URL: http://auth:4001
+      CASE_SERVICE_URL: http://case:4004
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - auth
+      - student
+      - incident
+      - case
+      - report
+      - analytics
+
+volumes:
+  mysql-data:
