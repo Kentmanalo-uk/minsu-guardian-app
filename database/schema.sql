@@ -1,9 +1,6 @@
 -- MinSU Disciplinary Management System — MySQL 8 schema
 -- Shared by all modules. Owned by the leader; change it only after telling the team.
-
-CREATE DATABASE IF NOT EXISTS minsu_disciplinary
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE minsu_disciplinary;
+-- Runs inside the database named by DB_NAME (database/setup.js selects it first).
 
 -- Module 1: system accounts
 CREATE TABLE IF NOT EXISTS users (

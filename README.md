@@ -48,6 +48,20 @@ Runs MySQL, all six services and the website in containers. Needs only Docker De
 
 The database lives in the `mysql-data` volume and is reachable from your PC on port **3307** (user `minsu`, password `MYSQL_PASSWORD`), so it doesn't clash with Laragon's MySQL on 3306. The admin account is only created on first start; changing `ADMIN_*` later does nothing.
 
+## Deploy to Hostinger (Node.js web hosting)
+
+Web hosting runs one Node.js app per website, so production starts with [server.js](server.js): it prepares the database, starts the six services on free internal ports, serves the website and forwards `/api/<module>/` to each service.
+
+1. In hPanel, create the MySQL database and user (**Databases → MySQL**).
+2. Add a Node.js app for the site, connected to this GitHub repo:
+   - **Build command:** `npm run build`
+   - **Start command / entry file:** `npm start` (`server.js`)
+   - **Node.js version:** 20 or 22
+3. Paste every line of your local `.env.production` into the app's **Environment variables** and fill in `DB_PASSWORD`. Don't add `PORT`; Hostinger sets it. This file is never committed.
+4. Deploy. On first start, the tables, the admin account and (with `SEED_SAMPLE_DATA=true`) the sample data are created. Log in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+
+Once you have real data, set `SEED_SAMPLE_DATA=false`. Sample data is only ever added to an empty database, so leaving it on is harmless.
+
 ## Project structure
 
 ```
