@@ -17,7 +17,7 @@ Case Management (Module 3) and its Good Moral check read student records from `s
 
 ```bash
 cd services/incident-service
-cp .env.example .env      # fill in the Firebase service-account values
+cp .env.example .env      # MySQL settings; Laragon defaults work as-is
 npm install
 npm run dev               # http://localhost:4003/health
 ```
