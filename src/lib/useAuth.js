@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { onSessionChange } from './session'
+import { clearSession, onSessionChange } from './session'
 import { authApi } from './api'
 
 export function useAuth() {
@@ -18,6 +18,11 @@ export function useAuth() {
           setUserRole(profile.role)
         } catch (error) {
           console.error('Error fetching user role:', error)
+          if (error.status === 403) {
+            clearSession()
+            setUserRole(null)
+            return
+          }
           setUserRole(session.user?.role ?? 'officer')
         }
       } else {

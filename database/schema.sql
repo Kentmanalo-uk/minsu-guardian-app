@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   email         VARCHAR(160) NOT NULL UNIQUE,
   password_hash CHAR(60)     NOT NULL,                -- bcrypt
   role          ENUM('admin', 'officer', 'staff') NOT NULL DEFAULT 'officer',
+  approved      BOOLEAN      NOT NULL DEFAULT TRUE,
   archived      BOOLEAN      NOT NULL DEFAULT FALSE,
   archived_at   DATETIME     NULL,
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -3,7 +3,7 @@ import { userApi } from '@/lib/api'
 import { useAuth } from '@/lib/useAuth'
 import toast from 'react-hot-toast'
 import DataTable from 'react-data-table-component'
-import { FaUserPlus, FaEdit, FaArchive, FaUsers, FaShieldAlt, FaUserTie, FaUndo } from 'react-icons/fa'
+import { FaUserPlus, FaEdit, FaArchive, FaUsers, FaShieldAlt, FaUserTie, FaUndo, FaCheckCircle } from 'react-icons/fa'
 import Modal, { ConfirmModal } from '@/components/Modal'
 
 export default function UserManagement() {
@@ -14,6 +14,7 @@ export default function UserManagement() {
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [showArchivedUsers, setShowArchivedUsers] = useState(false)
+  const [approvingUserId, setApprovingUserId] = useState(null)
   const { currentUser, userRole } = useAuth()
 
   const [newUserData, setNewUserData] = useState({
@@ -102,6 +103,20 @@ export default function UserManagement() {
     }
   }
 
+  const handleApproveUser = async (user) => {
+    setApprovingUserId(user.id)
+    try {
+      await userApi.approve(user.id)
+      toast.success(`${user.fullName} can now sign in.`)
+      await fetchUsers()
+    } catch (error) {
+      console.error('Error approving user:', error)
+      toast.error(error.message || 'Failed to approve user')
+    } finally {
+      setApprovingUserId(null)
+    }
+  }
+
   const getRoleBadge = (role) => {
     const badges = {
       admin: { color: 'bg-red-100 text-red-800', icon: FaShieldAlt, label: 'Admin' },
@@ -144,13 +159,38 @@ export default function UserManagement() {
       cell: row => getRoleBadge(row.role)
     },
     {
+      name: 'Account Status',
+      selector: row => row.approved ? 'Approved' : 'Pending approval',
+      sortable: true,
+      width: '160px',
+      center: true,
+      cell: row => (
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+          row.approved ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+        }`}>
+          {row.approved ? 'Approved' : 'Pending'}
+        </span>
+      )
+    },
+    {
       name: 'Actions',
-      width: '200px',
+      width: '270px',
       center: true,
       cell: row => (
         <div className="flex items-center justify-center space-x-2">
           {!showArchivedUsers ? (
             <>
+              {!row.approved && (
+                <button
+                  onClick={() => handleApproveUser(row)}
+                  disabled={approvingUserId === row.id}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800 transition-colors hover:bg-green-100 disabled:cursor-wait disabled:opacity-50"
+                  title="Approve account"
+                >
+                  <FaCheckCircle />
+                  <span>{approvingUserId === row.id ? 'Approving...' : 'Approve'}</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   setSelectedUser(row)

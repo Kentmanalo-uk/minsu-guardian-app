@@ -22,6 +22,7 @@ const toUser = (row) => ({
   fullName: row.full_name,
   email: row.email,
   role: row.role,
+  approved: !!row.approved,
   archived: !!row.archived,
   archivedAt: row.archived_at,
   createdAt: row.created_at,
@@ -43,6 +44,7 @@ async function loadUser(token) {
   const row = await findUser(payload.uid)
   if (!row) throw new HttpError(401, 'This account no longer exists')
   if (row.archived) throw new HttpError(403, 'This account has been disabled')
+  if (!row.approved) throw new HttpError(403, 'Your account is awaiting admin approval.')
   return { uid: row.id, email: row.email, fullName: row.full_name, role: row.role }
 }
 
@@ -66,15 +68,15 @@ function checkPassword(password) {
   }
 }
 
-async function createAccount({ fullName, email, password, role }) {
+async function createAccount({ fullName, email, password, role, approved = true }) {
   if (!ROLES.includes(role)) throw new HttpError(400, `Role must be one of: ${ROLES.join(', ')}`)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Invalid email address format')
   checkPassword(password)
 
   try {
     const [result] = await db.query(
-      'INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [fullName.trim(), email.trim().toLowerCase(), await bcrypt.hash(password, 10), role],
+      'INSERT INTO users (full_name, email, password_hash, role, approved) VALUES (?, ?, ?, ?, ?)',
+      [fullName.trim(), email.trim().toLowerCase(), await bcrypt.hash(password, 10), role, approved],
     )
     return toUser(await findUser(result.insertId))
   } catch (err) {
@@ -98,6 +100,7 @@ app.post('/auth/login', async (req, res) => {
     throw new HttpError(401, 'Invalid email or password')
   }
   if (row.archived) throw new HttpError(403, 'This account has been disabled')
+  if (!row.approved) throw new HttpError(403, 'Your account is awaiting admin approval.')
 
   const token = jwt.sign({ uid: row.id, role: row.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
   res.json({ token, user: toUser(row) })
@@ -111,7 +114,7 @@ app.get('/auth/me', authenticate, (req, res) => res.json(req.user))
 app.post('/auth/register', async (req, res) => {
   requireFields(req.body, ['fullName', 'email', 'password'])
   const { fullName, email, password } = req.body
-  res.status(201).json(await createAccount({ fullName, email, password, role: 'officer' }))
+  res.status(201).json(await createAccount({ fullName, email, password, role: 'officer', approved: false }))
 })
 
 app.use('/users', authenticate, requireAdmin)
@@ -124,7 +127,17 @@ app.get('/users', async (req, res) => {
 
 app.post('/users', async (req, res) => {
   requireFields(req.body, ['fullName', 'email', 'password', 'role'])
-  res.status(201).json(await createAccount(req.body))
+  res.status(201).json(await createAccount({ ...req.body, approved: true }))
+})
+
+app.patch('/users/:id/approve', async (req, res) => {
+  const row = await findUser(req.params.id)
+  if (!row) throw new HttpError(404, 'User not found')
+  if (row.archived) throw new HttpError(409, 'Archived users cannot be approved')
+  if (!row.approved) {
+    await db.query('UPDATE users SET approved = TRUE WHERE id = ?', [req.params.id])
+  }
+  res.json(toUser(await findUser(req.params.id)))
 })
 
 app.patch('/users/:id/role', async (req, res) => {

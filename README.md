@@ -77,8 +77,9 @@ Once you have real data, set `SEED_SAMPLE_DATA=false`. Sample data is only ever 
 
 ## Accounts
 
-- Anyone can register from the login page; new accounts get the **officer** role.
-- Administrators manage users under **User Management**: change roles, archive accounts, and set a new password for someone who forgot theirs (there is no email reset).
+- Anyone can submit a registration request from the login page; new accounts get the **officer** role and must be approved by an administrator before signing in.
+- Administrators review and approve requests under **User Management**, and can change roles, archive accounts, and set a new password for someone who forgot theirs (there is no email reset).
+- Run `npm run db:setup` when deploying an update; it adds the account-approval column to existing databases while keeping existing accounts approved.
 
 ## Build for production
 

@@ -6,11 +6,13 @@
 
 | Service | Port | Provides | Calls |
 |---|---|---|---|
-| `services/auth-service` | 4001 | POST /auth/login · GET /auth/me · GET /auth/verify · POST /auth/register · GET/POST /users · PATCH /users/:id/role · PATCH /users/:id/archive · PATCH /users/:id/password (admin) | — |
+| `services/auth-service` | 4001 | POST /auth/login · GET /auth/me · GET /auth/verify · POST /auth/register · GET/POST /users · PATCH /users/:id/approve · PATCH /users/:id/role · PATCH /users/:id/archive · PATCH /users/:id/password (admin) | — |
 
 **Pages** (in `pages/`): Landing.jsx (login, register, reset password) · UserManagement.jsx · Login.jsx, Register.jsx (not routed yet)
 
 Every other service calls `GET /auth/verify` to check the caller, so keep that response shape stable: `{ uid, email, fullName, role }`.
+
+Self-registration creates an unapproved officer account. The user cannot sign in or use a forwarded token until an administrator approves the account in User Management. Admin-created accounts are approved immediately. Run the root `npm run db:setup` command to add the approval column to an existing database; existing accounts remain approved.
 
 ## Run it alone
 
