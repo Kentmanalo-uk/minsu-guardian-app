@@ -22,6 +22,11 @@ try {
 await conn.query('USE ??', [DB_NAME])
 
 await conn.query(fs.readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'))
+const [approvalColumns] = await conn.query("SHOW COLUMNS FROM users LIKE 'approved'")
+if (approvalColumns.length === 0) {
+  await conn.query('ALTER TABLE users ADD COLUMN approved BOOLEAN NOT NULL DEFAULT TRUE AFTER role')
+  console.log('✓ Added account approval status; existing accounts remain approved')
+}
 console.log(`✓ Database ${DB_NAME} and tables are ready`)
 
 if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
