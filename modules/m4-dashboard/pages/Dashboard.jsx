@@ -3,7 +3,7 @@ import { analyticsApi } from '@/lib/api'
 import DataTable from 'react-data-table-component'
 import { useNavigate } from 'react-router-dom'
 import { FaChartBar, FaClock, FaSync, FaCheckCircle } from 'react-icons/fa'
-
+//updates 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
