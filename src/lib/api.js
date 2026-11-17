@@ -48,6 +48,7 @@ export const authApi = {
 export const userApi = {
   list: (archived = false) => request('auth', `/users?archived=${archived}`),
   create: (data) => request('auth', '/users', json('POST', data)),
+  approve: (id) => request('auth', `/users/${id}/approve`, json('PATCH', {})),
   updateRole: (id, role) => request('auth', `/users/${id}/role`, json('PATCH', { role })),
   setArchived: (id, archived) => request('auth', `/users/${id}/archive`, json('PATCH', { archived })),
   resetPassword: (id, password) => request('auth', `/users/${id}/password`, json('PATCH', { password })),

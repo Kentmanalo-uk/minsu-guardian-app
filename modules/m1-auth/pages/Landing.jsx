@@ -92,18 +92,16 @@ export default function Landing() {
     }
 
     try {
-      // The Auth service creates the officer account, then we log in with it
+      // New self-registered accounts remain unable to sign in until approved by an admin.
       await authApi.register({
         fullName: registerData.fullName,
         email: registerData.email,
         password: registerData.password
       })
-      const { token, user } = await authApi.login(registerData.email, registerData.password)
-      setSession({ token, user })
 
-      toast.success('Account created successfully! Welcome to MinSU.')
+      toast.success('Request submitted. You can sign in once an administrator approves your account.')
       setShowRegisterModal(false)
-      navigate('/app/dashboard')
+      setRegisterData({ fullName: '', email: '', password: '', confirmPassword: '' })
     } catch (error) {
       const message = error.message || 'Registration failed. Please try again.'
       setRegisterError(message)
